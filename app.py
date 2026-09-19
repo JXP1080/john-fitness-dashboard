@@ -59,10 +59,14 @@ PROFILE = {
 
 col1, col2 = st.columns([2, 1])
 with col1:
-    st.title("💪 John's Fitness Dashboard")
-    st.subheader("Week 5 - Phase 1: Foundation + Density")
-with col2:
-    st.info(f"**Week 5** | Phase 1\n69.6kg → 75kg\n16.2% → 10% fat")
+        st.markdown("### 📋 This Week's Workouts")
+        workouts = pd.DataFrame({
+            'Day': ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
+            'Focus': ['Upper A', 'Lower A', 'Upper B', 'Lower B'],
+            'Main Lift': ['Bench 78kg', 'Squat 82kg', 'Hammer 16kg', 'RDL 85kg'],
+            'Status': ['✓ Done', '✓ Done', '○ Pending', '○ Pending']
+        })
+        st.dataframe(workouts, use_container_width=True)
 
 # ============================================================================
 # SIDEBAR
