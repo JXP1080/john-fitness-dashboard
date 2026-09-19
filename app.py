@@ -1,14 +1,18 @@
 """
 JOHN'S 48-WEEK AESTHETIC DENSITY PROGRAM
-Complete Streamlit Dashboard - Production Ready
-Session storage for workout history + live analytics
-SYNTAX VERIFIED - No errors
+Complete Streamlit Dashboard - FINAL VERSION
+Features:
+- Auto-recommendations (nutrition + workout adjustments)
+- High-protein recipe links (daily)
+- Automatic rest timer with beep sound
+- Integrated analytics (workout + nutrition + metrics)
 """
 
 import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime
+import time
 
 st.set_page_config(
     page_title="John's 48-Week Aesthetic Density Plan",
@@ -28,8 +32,6 @@ st.markdown("""
     margin-bottom: 12px;
 }
 .phase-1 { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
-.phase-2 { background: linear-gradient(135deg, #764ba2, #f093fb); color: white; }
-.phase-3 { background: linear-gradient(135deg, #f093fb, #4facfe); color: white; }
 .stat-card {
     background: white;
     padding: 14px 16px;
@@ -39,66 +41,139 @@ st.markdown("""
 }
 .stat-label { font-size: 11px; color: #666; margin-bottom: 8px; }
 .stat-value { font-size: 20px; font-weight: bold; color: #667eea; }
-.weakness-alert {
+.recommendation-box {
+    padding: 14px;
+    background: #e3f2fd;
+    border-left: 4px solid #2196f3;
+    border-radius: 6px;
+    margin: 12px 0;
+    font-size: 13px;
+}
+.warning-box {
     padding: 14px;
     background: #fff3cd;
     border-left: 4px solid #ffc107;
     border-radius: 6px;
     margin: 12px 0;
     font-size: 13px;
-    color: #856404;
+}
+.success-box {
+    padding: 14px;
+    background: #e8f5e9;
+    border-left: 4px solid #4caf50;
+    border-radius: 6px;
+    margin: 12px 0;
+    font-size: 13px;
+}
+.recipe-link {
+    display: inline-block;
+    padding: 8px 12px;
+    background: #667eea;
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+    margin: 4px;
+    font-size: 12px;
+}
+.timer-display {
+    font-size: 48px;
+    font-weight: bold;
+    text-align: center;
+    color: #667eea;
+    padding: 20px;
+    border-radius: 8px;
+    background: #f0f0f0;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# SESSION STATE INITIALIZATION
+# SESSION STATE
 if "current_week" not in st.session_state:
     st.session_state.current_week = 5
-
 if "workout_history" not in st.session_state:
     st.session_state.workout_history = {}
-
 if "weekly_logs" not in st.session_state:
     st.session_state.weekly_logs = []
+if "nutrition_logs" not in st.session_state:
+    st.session_state.nutrition_logs = []
+if "metrics_logs" not in st.session_state:
+    st.session_state.metrics_logs = []
+if "timer_running" not in st.session_state:
+    st.session_state.timer_running = False
+if "timer_seconds" not in st.session_state:
+    st.session_state.timer_seconds = 0
 
-# YOUR SPLIT DATA
+# HIGH-PROTEIN RECIPE LINKS (Public)
+PROTEIN_RECIPES = {
+    "Monday": [
+        ("Grilled Chicken Breast + Sweet Potato", "https://www.allrecipes.com/recipe/220957/grilled-chicken-breast/"),
+        ("Protein Pancakes (40g protein)", "https://www.muscleandstrength.com/recipes/protein-pancakes"),
+        ("Egg White Omelette", "https://www.foodnetwork.com/recipes/ina-garten/perfect-omelet-recipe-1916304"),
+    ],
+    "Tuesday": [
+        ("Ground Beef & Brown Rice Bowl", "https://www.allrecipes.com/recipe/232155/ground-beef-and-brown-rice-casserole/"),
+        ("Lentil Protein Soup", "https://www.budgetbytes.com/lentil-soup-recipe/"),
+        ("Turkey Meatballs (45g protein/serving)", "https://www.loveandlemons.com/turkey-meatballs-recipe/"),
+    ],
+    "Wednesday": [
+        ("Baked Salmon + Quinoa", "https://www.foodnetwork.com/recipes/baked-salmon-with-citrus-butter-3152095"),
+        ("Chickpea Curry (high protein)", "https://www.allrecipes.com/recipe/222975/chickpea-curry/"),
+        ("Cottage Cheese Bowl (25g protein)", "https://www.delish.com/cooking/recipe-ideas/recipes/a51181/high-protein-cottage-cheese-bowls-recipe/"),
+    ],
+    "Thursday": [
+        ("Lean Beef Steak + Asparagus", "https://www.foodnetwork.com/recipes/food-network-kitchen/pan-seared-steak-recipe-3319725"),
+        ("Greek Yogurt Protein Parfait", "https://www.myfitnesspal.com/nutrition-facts/generic/greek-yogurt-with-granola-and-berries"),
+        ("Tuna Salad (50g protein)", "https://www.allrecipes.com/recipe/12750/tuna-salad/"),
+    ],
+    "Friday": [
+        ("Chicken Breast Shawarma", "https://www.budgetbytes.com/chicken-shawarma-recipe/"),
+        ("Protein Shake (50g protein)", "https://www.muscleandstrength.com/recipes/high-protein-smoothie"),
+        ("Tofu Stir-Fry (35g protein)", "https://www.allrecipes.com/recipe/20129/stir-fried-tofu/"),
+    ],
+}
+
+# YOUR LOCKED SPLIT
 YOUR_SPLIT = {
-    "Monday - Shoulders + Arms": {
+    "Monday - Shoulders + Arms + Hip Flexor": {
         "exercises": [
-            {"name": "Machine Shoulder Press", "type": "MAIN", "sets": 4, "reps": "8-10", "rest": 180, "w5": 38.0, "w8": 42.0},
-            {"name": "DB Lateral Raise", "type": "HYPER", "sets": 4, "reps": "12-15", "rest": 60, "w5": 9.0, "w8": 11.0, "weak": True},
-            {"name": "Cable Lateral Raise (Double)", "type": "HYPER", "sets": 3, "reps": "12-15", "rest": 60, "w5": 8.0, "w8": 10.0, "weak": True},
-            {"name": "Hammer Curl", "type": "HYPER", "sets": 3, "reps": "10-12", "rest": 60, "w5": 14.0, "w8": 16.0},
-            {"name": "Triceps Cable Pushdown", "type": "HYPER", "sets": 3, "reps": "12-15", "rest": 60, "w5": 21.6, "w8": 25.0},
+            {"name": "Machine Shoulder Press", "type": "MAIN", "sets": 4, "reps": "8-10", "rest": 180, "w5": 38.0},
+            {"name": "DB Lateral Raise", "type": "HYPER", "sets": 4, "reps": "12-15", "rest": 60, "w5": 9.0, "weak": True},
+            {"name": "Cable Lateral Raise", "type": "HYPER", "sets": 3, "reps": "12-15", "rest": 60, "w5": 8.0, "weak": True},
+            {"name": "Hammer Curl", "type": "HYPER", "sets": 3, "reps": "10-12", "rest": 60, "w5": 14.0},
+            {"name": "Triceps Cable Pushdown", "type": "HYPER", "sets": 3, "reps": "12-15", "rest": 60, "w5": 21.6},
+            {"name": "Captain's Chair Leg Raise", "type": "ABS", "sets": 3, "reps": "20", "rest": 60, "w5": 20},
         ]
     },
-    "Tuesday - Legs + Back": {
+    "Tuesday - Legs + Back + Anti-Rotation": {
         "exercises": [
-            {"name": "Back Squat", "type": "MAIN", "sets": 4, "reps": "6-8", "rest": 180, "w5": 30.0, "w8": 40.0},
-            {"name": "Leg Press", "type": "MAIN", "sets": 4, "reps": "8-10", "rest": 180, "w5": 85.0, "w8": 95.0},
-            {"name": "Leg Extension", "type": "HYPER", "sets": 3, "reps": "10-12", "rest": 90, "w5": 45.0, "w8": 50.0},
-            {"name": "RDL", "type": "ACC", "sets": 3, "reps": "10-12", "rest": 90, "w5": 65.0, "w8": 70.0},
-            {"name": "Lat Pulldown", "type": "MAIN", "sets": 4, "reps": "8-10", "rest": 180, "w5": 42.0, "w8": 48.0},
-            {"name": "Seated Row", "type": "MAIN", "sets": 4, "reps": "8-10", "rest": 180, "w5": 42.0, "w8": 48.0},
+            {"name": "Back Squat", "type": "MAIN", "sets": 4, "reps": "6-8", "rest": 180, "w5": 30.0},
+            {"name": "Leg Press", "type": "MAIN", "sets": 4, "reps": "8-10", "rest": 180, "w5": 85.0},
+            {"name": "Leg Extension", "type": "HYPER", "sets": 3, "reps": "10-12", "rest": 90, "w5": 45.0},
+            {"name": "RDL", "type": "ACC", "sets": 3, "reps": "10-12", "rest": 90, "w5": 65.0},
+            {"name": "Lat Pulldown", "type": "MAIN", "sets": 4, "reps": "8-10", "rest": 180, "w5": 42.0},
+            {"name": "Seated Row", "type": "MAIN", "sets": 4, "reps": "8-10", "rest": 180, "w5": 42.0},
+            {"name": "Pallof Press (Single Arm)", "type": "ABS", "sets": 2, "reps": "12 each", "rest": 60, "w5": 12.0},
         ]
     },
-    "Wednesday - Chest + Core": {
+    "Thursday - Chest + Triceps + Primary Core": {
         "exercises": [
-            {"name": "Barbell Bench Press", "type": "MAIN", "sets": 4, "reps": "6-8", "rest": 180, "w5": 28.0, "w8": 32.0, "weak": True},
-            {"name": "DB Bench Press", "type": "HYPER", "sets": 4, "reps": "8-10", "rest": 120, "w5": 20.0, "w8": 23.0},
-            {"name": "Machine Chest Press", "type": "VOL", "sets": 3, "reps": "12-15", "rest": 90, "w5": 50.0, "w8": 55.0},
-            {"name": "Incline DB Press", "type": "VOL", "sets": 3, "reps": "10-12", "rest": 90, "w5": 16.0, "w8": 18.0},
-            {"name": "Cable Crunch", "type": "ACC", "sets": 3, "reps": "12-15", "rest": 60, "w5": 20.0, "w8": 25.0},
-            {"name": "Machine Ab Crunch", "type": "ACC", "sets": 3, "reps": "12-15", "rest": 60, "w5": 25.0, "w8": 30.0},
+            {"name": "Barbell Bench Press", "type": "MAIN", "sets": 4, "reps": "6-8", "rest": 180, "w5": 28.0, "weak": True},
+            {"name": "DB Bench Press", "type": "HYPER", "sets": 4, "reps": "8-10", "rest": 120, "w5": 20.0},
+            {"name": "Machine Chest Press", "type": "VOL", "sets": 3, "reps": "12-15", "rest": 90, "w5": 50.0},
+            {"name": "Incline DB Press", "type": "VOL", "sets": 3, "reps": "10-12", "rest": 90, "w5": 16.0},
+            {"name": "Machine Dip", "type": "ACC", "sets": 2, "reps": "12-15", "rest": 60, "w5": 45.0},
+            {"name": "Cable Crunch", "type": "ABS", "sets": 3, "reps": "12-15", "rest": 60, "w5": 20.0},
+            {"name": "Machine Ab Crunch", "type": "ABS", "sets": 3, "reps": "12-15", "rest": 60, "w5": 25.0},
         ]
     },
-    "Thursday - Arms + Leg Finisher": {
+    "Friday - Arms + Legs Finisher + Obliques": {
         "exercises": [
-            {"name": "Hammer Curl", "type": "HYPER", "sets": 3, "reps": "10-12", "rest": 60, "w5": 14.0, "w8": 16.0},
-            {"name": "Machine Curl", "type": "HYPER", "sets": 3, "reps": "10-12", "rest": 60, "w5": 18.0, "w8": 20.0},
-            {"name": "Triceps Cable Pushdown", "type": "HYPER", "sets": 3, "reps": "12-15", "rest": 60, "w5": 21.6, "w8": 25.0},
-            {"name": "Machine Dip", "type": "HYPER", "sets": 2, "reps": "12-15", "rest": 60, "w5": 45.0, "w8": 50.0},
-            {"name": "Leg Press Drop Set", "type": "VOL", "sets": 2, "reps": "Drop to fail", "rest": 120, "w5": "85→65→45", "w8": "95→75→55"},
+            {"name": "Machine Curl", "type": "ARM", "sets": 3, "reps": "10-12", "rest": 60, "w5": 18.0},
+            {"name": "Hammer Curl", "type": "ARM", "sets": 3, "reps": "10-12", "rest": 60, "w5": 14.0},
+            {"name": "Triceps Pushdown", "type": "ARM", "sets": 3, "reps": "12-15", "rest": 60, "w5": 21.6},
+            {"name": "Leg Press Drop Set", "type": "VOL", "sets": 2, "reps": "Drop to fail", "rest": 120, "w5": "85→65→45"},
+            {"name": "Woodchops (Alternating)", "type": "ABS", "sets": 3, "reps": "20 alt", "rest": 60, "w5": 20},
+            {"name": "Reverse Crunch", "type": "ABS", "sets": 2, "reps": "15", "rest": 45, "w5": 0},
         ]
     },
 }
@@ -110,28 +185,16 @@ with st.sidebar:
     st.session_state.current_week = selected_week
     
     if selected_week <= 8:
-        phase_text = "Phase 1: Accumulation"
+        phase_text = "Phase 1: Foundation"
         phase_color = "phase-1"
-    elif selected_week <= 16:
-        phase_text = "Phase 2: Intensification"
-        phase_color = "phase-1"
-    elif selected_week <= 24:
-        phase_text = "Phase 3: Hypertrophy"
-        phase_color = "phase-2"
-    elif selected_week <= 32:
-        phase_text = "Phase 4: Strength"
-        phase_color = "phase-2"
-    elif selected_week <= 40:
-        phase_text = "Phase 5: Peak Power"
-        phase_color = "phase-3"
     else:
-        phase_text = "Phase 6: Deload"
-        phase_color = "phase-3"
+        phase_text = f"Phase {(selected_week - 9) // 8 + 2}"
+        phase_color = "phase-1"
     
     st.markdown(f"<div class='phase-badge {phase_color}'>{phase_text}</div>", unsafe_allow_html=True)
     st.divider()
-    st.metric("Weight", "69.6 kg", "+2.4")
-    st.metric("Target", "75 kg", "5.4 to go")
+    st.metric("Current Weight", "69.6 kg", "+2.4")
+    st.metric("Target (W12)", "72 kg", "2.4 to go")
 
 # MAIN TABS
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
@@ -168,9 +231,9 @@ with tab1:
                     hist = st.session_state.workout_history[ex["name"]]
                     last_log = f" | **Last:** {hist['weight']}kg × {hist['reps']} @ RPE {hist['rpe']}"
                 
-                st.markdown(f"**{weak_badge}{ex['name']}** | {ex['type']} {ex['sets']}×{ex['reps']} | Rest {ex['rest']}s | **Target: {current_weight}kg**{last_log}")
+                st.markdown(f"**{weak_badge}{ex['name']}** | {ex['type']} {ex['sets']}×{ex['reps']} | Rest {ex['rest']}s | **{current_weight}kg**{last_log}")
 
-# TAB 2: WORKOUT LOGGER
+# TAB 2: WORKOUT LOGGER WITH AUTO REST TIMER
 with tab2:
     st.markdown("### Log Today's Workout")
     
@@ -186,17 +249,14 @@ with tab2:
             hist = st.session_state.workout_history[ex["name"]]
             st.caption(f"📋 Last: {hist['weight']}kg × {hist['reps']} @ RPE {hist['rpe']}")
         
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
-            weight = st.number_input(f"Weight (kg) {ex['name']}", value=float(ex.get("w5", 0)), step=0.5, key=f"w_{i}")
-        
+            weight = st.number_input(f"Weight (kg)", value=float(ex.get("w5", 0)), step=0.5, key=f"w_{i}")
         with col2:
-            reps = st.number_input(f"Reps {ex['name']}", value=8, min_value=1, key=f"r_{i}")
-        
+            reps = st.number_input(f"Reps", value=8, min_value=1, key=f"r_{i}")
         with col3:
-            rpe = st.slider(f"RPE {ex['name']}", 1, 10, 8, key=f"rpe_{i}")
-        
+            rpe = st.slider(f"RPE", 1, 10, 8, key=f"rpe_{i}")
         with col4:
             if st.button("✅ Log", key=f"log_{i}"):
                 st.session_state.workout_history[ex["name"]] = {
@@ -216,11 +276,51 @@ with tab2:
                 })
                 
                 st.success(f"✓ {ex['name']}: {weight}kg × {reps} @ RPE {rpe}")
+        
+        with col4:
+            st.markdown(f"**Rest: {ex['rest']}s**")
+        
+        # AUTO REST TIMER WITH BEEP
+        with col5:
+            if st.button("⏱️ Start Timer", key=f"timer_{i}"):
+                placeholder = st.empty()
+                rest_time = ex['rest']
+                
+                for remaining in range(rest_time, 0, -1):
+                    mins, secs = divmod(remaining, 60)
+                    with placeholder.container():
+                        st.markdown(f"""
+                        <div class='timer-display'>
+                        {mins:02d}:{secs:02d}
+                        </div>
+                        """, unsafe_allow_html=True)
+                    time.sleep(1)
+                
+                # BEEP SOUND (using HTML audio)
+                st.markdown("""
+                <audio autoplay>
+                    <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+                </audio>
+                """, unsafe_allow_html=True)
+                
+                st.success(f"✅ Rest time complete! Ready for next set?")
+        
+        st.markdown("---")
 
-# TAB 3: NUTRITION
+# TAB 3: NUTRITION TRACKER WITH RECIPE LINKS
 with tab3:
     st.markdown("### Daily Nutrition Tracker")
     st.info("**Target:** 3,150 kcal | 165g protein | 413g carbs | 44g fat")
+    
+    selected_day_nutrition = st.selectbox("📅 Select Day for Recipes", 
+                                         ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+                                         key="day_recipes")
+    
+    st.markdown(f"#### 🍽️ High-Protein Recipes for {selected_day_nutrition}")
+    for recipe_name, recipe_url in PROTEIN_RECIPES[selected_day_nutrition]:
+        st.markdown(f"[🔗 {recipe_name}]({recipe_url})", unsafe_allow_html=True)
+    
+    st.divider()
     
     col1, col2 = st.columns(2)
     meals = ["7am Breakfast", "10am Snack", "1pm Lunch", "3:30pm Pre-WO", "7pm Dinner", "10pm Night Shake"]
@@ -251,6 +351,32 @@ with tab3:
         st.metric("Fat", f"{fat_g}g", f"{fat_g-44}g vs target")
     with col4:
         st.metric("Total", f"{total_cals} kcal", f"{total_cals-3150} vs target")
+    
+    # NUTRITION RECOMMENDATION
+    if total_cals < 3000:
+        st.markdown("""
+        <div class='warning-box'>
+        ⚠️ **RECOMMENDATION:** Calories too low ({} kcal vs 3,150 target)
+        <br>➜ Add: 1 extra meal or increase portions
+        <br>➜ Impact: May limit muscle growth
+        </div>
+        """.format(int(total_cals)), unsafe_allow_html=True)
+    elif total_cals > 3300:
+        st.markdown("""
+        <div class='warning-box'>
+        ⚠️ **RECOMMENDATION:** Calories too high ({} kcal vs 3,150 target)
+        <br>➜ Reduce: Carbs or fat by 50-100g
+        <br>➜ Impact: May add unnecessary fat gain
+        </div>
+        """.format(int(total_cals)), unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class='success-box'>
+        ✅ **PERFECT:** Calories on target ({} kcal)
+        <br>➜ Protein adequate for muscle growth
+        <br>➜ Continue this pattern
+        </div>
+        """.format(int(total_cals)), unsafe_allow_html=True)
 
 # TAB 4: METRICS
 with tab4:
@@ -267,6 +393,14 @@ with tab4:
         sleep_hours = st.number_input("Sleep (hours)", value=5.0, step=0.5)
         
         if st.button("💾 Save Metrics"):
+            st.session_state.metrics_logs.append({
+                "date": datetime.now(),
+                "weight": weight_today,
+                "body_fat": body_fat,
+                "muscle": muscle_mass,
+                "waist": waist_cm,
+                "sleep": sleep_hours
+            })
             st.success("✓ Metrics saved")
     
     with col2:
@@ -276,7 +410,7 @@ with tab4:
         st.metric("Muscle Mass", "+3.2 kg", "target: +10 kg by W12")
         st.metric("Sleep", f"{sleep_hours}h/night", "target: 7-8h")
 
-# TAB 5: ANALYTICS
+# TAB 5: ANALYTICS (INTEGRATED)
 with tab5:
     st.markdown("### Weekly Analytics (Live Data)")
     
@@ -296,62 +430,89 @@ with tab5:
             st.metric("Avg RPE", f"{avg_rpe:.1f}", "target: 8-9")
         
         st.divider()
-        st.markdown("### Exercise Performance (This Week)")
         
-        for exercise in logs_df["exercise"].unique():
-            ex_logs = logs_df[logs_df["exercise"] == exercise].sort_values("date")
-            latest = ex_logs.iloc[-1]
-            
-            st.markdown(f"""
-            **{exercise}**
-            - Weight: {latest['weight']}kg | Reps: {latest['reps']} | RPE: {latest['rpe']}
-            - Sessions: {len(ex_logs)} | Total Volume: {(ex_logs['weight'] * ex_logs['reps']).sum():.0f}kg
-            """)
+        # INTEGRATED RECOMMENDATIONS
+        st.markdown("### AI-Powered Recommendations")
+        
+        # Volume Analysis
+        if total_volume < 15000:
+            st.markdown("""
+            <div class='recommendation-box'>
+            📊 **Volume Low:** {:.0f}kg lifted (expect 17-18k/week)
+            <br>➜ Action: Increase reps or weight on accessories
+            <br>➜ Impact on progress: Slower muscle growth
+            </div>
+            """.format(total_volume), unsafe_allow_html=True)
+        
+        # RPE Analysis
+        if avg_rpe < 7.5:
+            st.markdown("""
+            <div class='recommendation-box'>
+            💪 **Intensity Low:** RPE {:.1f} (target: 8-9)
+            <br>➜ Action: Push harder on main lifts, reduce rest 30s
+            <br>➜ Impact: Better muscle stimulus
+            </div>
+            """.format(avg_rpe), unsafe_allow_html=True)
+        elif avg_rpe > 9:
+            st.markdown("""
+            <div class='warning-box'>
+            ⚠️ **Over-Training:** RPE {:.1f} (target: 8-9)
+            <br>➜ Action: Reduce volume by 1-2 sets next week
+            <br>➜ Impact: Better recovery, prevent burnout
+            </div>
+            """.format(avg_rpe), unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div class='success-box'>
+            ✅ **Perfect Intensity:** RPE {:.1f}
+            <br>➜ Continue current programming
+            </div>
+            """.format(avg_rpe), unsafe_allow_html=True)
+        
+        # WORKOUT + NUTRITION + METRICS Integration
+        if protein_g >= 160 and total_volume > 16000:
+            st.markdown("""
+            <div class='success-box'>
+            🎯 **FULL INTEGRATION ON TRACK**
+            <br>✅ Volume: {:.0f}kg | ✅ Protein: {}g | ✅ Sleep: {}h
+            <br>➜ Expected outcome: +0.5kg muscle by Week 8
+            </div>
+            """.format(total_volume, int(protein_g), int(sleep_hours)), unsafe_allow_html=True)
+        elif protein_g < 160:
+            st.markdown("""
+            <div class='warning-box'>
+            ⚠️ **FIX NUTRITION FIRST**
+            <br>Volume: {:.0f}kg (good) | Protein: {}g (LOW) | Sleep: {}h
+            <br>➜ Action: Add 10-20g protein (extra meal or shake)
+            <br>➜ Without protein, volume gains won't translate to muscle
+            </div>
+            """.format(total_volume, int(protein_g), int(sleep_hours)), unsafe_allow_html=True)
+        elif int(sleep_hours) < 6:
+            st.markdown("""
+            <div class='warning-box'>
+            😴 **SLEEP IS LIMITING FACTOR**
+            <br>Volume: {:.0f}kg | Protein: {}g | Sleep: {}h (LOW)
+            <br>➜ Action: Prioritize sleep (even 30min more = +5% strength)
+            <br>➜ Without sleep, gains plateau despite good training/nutrition
+            </div>
+            """.format(total_volume, int(protein_g), int(sleep_hours)), unsafe_allow_html=True)
+    
     else:
         st.info("📝 No workouts logged yet. Start logging to see analytics!")
-    
-    st.divider()
-    st.markdown("### Weak Point Focus")
-    
-    st.markdown("""
-    <div class='weakness-alert'>
-    <strong>🔴 Shoulders (Priority 1)</strong><br>
-    Lateral Raise: 8kg → 11kg | Volume: 9 sets/week | Target: 12kg by W12
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("""
-    <div class='weakness-alert'>
-    <strong>🔴 Chest (Priority 2)</strong><br>
-    Bench Press: 25kg → 32kg by W8 | Density focus | Target: 36kg by W12
-    </div>
-    """, unsafe_allow_html=True)
 
 # TAB 6: 12-MONTH PLAN
 with tab6:
     st.markdown("### 48-Week Periodization")
     
     phases_df = pd.DataFrame({
-        "Phase": ["1", "2", "3", "4", "5", "6"],
-        "Name": ["Foundation", "Density", "Hypertrophy", "Strength", "Peak Power", "Deload"],
-        "Weeks": ["1-8", "9-16", "17-24", "25-32", "33-40", "41-48"],
-        "Focus": ["Build base", "Density", "Growth", "Strength", "Power", "Recovery"],
-        "Volume": ["High", "High", "Very High", "Moderate", "Mod-High", "Low"],
+        "Phase": ["1", "2", "3"],
+        "Name": ["Foundation", "Hypertrophy", "Definition"],
+        "Weeks": ["5-12", "13-24", "25-48"],
+        "Focus": ["Build base", "Max growth", "Sculpt & cut"],
+        "Abs": ["2-3x/week", "3x/week", "3-4x/week"],
     })
     
     st.dataframe(phases_df, use_container_width=True, hide_index=True)
-    
-    st.divider()
-    st.markdown("### Milestones")
-    
-    milestones_df = pd.DataFrame({
-        "Metric": ["Weight", "Body Fat", "Bench", "Lateral Raise", "Leg Press"],
-        "W1": ["69.6kg", "16.2%", "25kg", "8kg", "79kg"],
-        "W8": ["71-72kg", "15.8%", "32kg", "11kg", "95kg"],
-        "W12": ["73kg", "15%", "36kg", "12kg", "110kg"],
-    })
-    
-    st.dataframe(milestones_df, use_container_width=True, hide_index=True)
 
 # TAB 7: SETTINGS
 with tab7:
@@ -363,17 +524,11 @@ with tab7:
         st.markdown("#### Profile")
         name = st.text_input("Name", value="John")
         age = st.number_input("Age", value=33)
-        height_cm = st.number_input("Height (cm)", value=176)
     
     with col2:
         st.markdown("#### Goals")
         target_weight = st.number_input("Target Weight (kg)", value=75.0)
         target_bf = st.number_input("Target Body Fat (%)", value=10.0)
-    
-    st.divider()
-    st.markdown("#### Constraints")
-    st.checkbox("✓ Glaucoma (no inversions)", value=True, disabled=True)
-    st.checkbox("✓ Tennis elbow (neutral grip)", value=True, disabled=True)
     
     if st.button("💾 Save Settings"):
         st.success("✓ Settings saved")
@@ -381,6 +536,6 @@ with tab7:
 st.divider()
 st.markdown("""
 <div style='text-align: center; color: #999; font-size: 11px;'>
-📱 Live workout history & analytics | All 7 tabs functional | Ready for Streamlit Cloud
+✅ Auto-recommendations | 🔗 Recipe links | ⏱️ Auto rest timer with beep | 📊 Integrated analytics
 </div>
 """, unsafe_allow_html=True)
