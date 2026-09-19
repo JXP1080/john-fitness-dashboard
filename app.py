@@ -1,1 +1,114 @@
-"""JOHN'S FITNESS DASHBOARD - Week 5 Tracker""" import streamlit as st import pandas as pd import numpy as np import plotly.graph_objects as go from datetime import datetime st.set_page_config(page_title="John's Dashboard", page_icon="💪", layout="wide") # Initialize session state if 'meals' not in st.session_state: st.session_state.meals = [] if 'exercises' not in st.session_state: st.session_state.exercises = [] if 'metrics' not in st.session_state: st.session_state.metrics = [{'date': '2026-09-19', 'weight': 69.6, 'fat': 16.2, 'muscle': 55.4, 'sleep': 5.0}] # Header col1, col2 = st.columns([2, 1]) with col1: st.title("💪 John's Fitness Dashboard") st.subheader("Week 5 - Phase 1: Foundation + Density") with col2: st.info("**69.6kg → 75kg**\n**16.2% → 10% fat**\n**Week 5 of 48**") # Sidebar page = st.sidebar.radio("Select:", ["📊 Dashboard", "🍽️ Nutrition", "🏋️ Training", "📈 Metrics", "📉 Analytics", "🎯 Plan"]) st.sidebar.markdown("---") st.sidebar.metric("Weight", "69.6 kg", "+0.3 kg") st.sidebar.metric("Fat %", "16.2%", "Stable") st.sidebar.metric("Workouts", "3/4", "75%") # PAGE 1: DASHBOARD if page == "📊 Dashboard": st.markdown("## Dashboard") col1, col2, col3, col4 = st.columns(4) col1.metric("Weight", "69.6 kg", "+0.3") col2.metric("Fat %", "16.2%", "Stable") col3.metric("Muscle", "55.4 kg", "+0.2") col4.metric("Sleep", "5.2h", "⚠️") st.markdown("---") col1, col2 = st.columns(2) with col1: st.markdown("### This Week") workouts = pd.DataFrame({ 'Day': ['Mon', 'Tue', 'Wed', 'Thu'], 'Focus': ['Upper A', 'Lower A', 'Upper B', 'Lower B'], 'Main': ['Bench 78kg', 'Squat 82kg', 'Curl 16kg', 'RDL 85kg'], 'Status': ['✓', '✓', '○', '○'] }) st.dataframe(workouts, use_container_width=True) with col2: st.markdown("### Stats") stats = pd.DataFrame({ 'Metric': ['Workouts', 'Volume', 'Calories', 'Sleep'], 'Current': ['3/4', '65k kg', '3,280', '5.2h'], 'Target': ['4/4', '88k kg', '3,300', '7h'] }) st.dataframe(stats, use_container_width=True) # PAGE 2: NUTRITION elif page == "🍽️ Nutrition": st.markdown("## Nutrition Tracker") col1, col2 = st.columns(2) with col1: meal_type = st.selectbox("Meal", ["7am Breakfast", "10am Snack", "1pm Lunch", "3:30pm Pre-WO", "7pm Dinner", "10pm Shake"]) with col2: meal_date = st.date_input("Date", datetime.now()) col1, col2, col3, col4 = st.columns(4) with col1: cal = st.number_input("Cal", 0, 1000, 500) with col2: prot = st.number_input("Protein (g)", 0, 100, 25) with col3: carbs = st.number_input("Carbs (g)", 0, 200, 75) with col4: fats = st.number_input("Fats (g)", 0, 50, 8) if st.button("✅ Log Meal"): st.session_state.meals.append({'date': meal_date, 'meal': meal_type, 'cal': cal, 'prot': prot, 'carbs': carbs, 'fats': fats}) st.success(f"✅ {meal_type} logged!") st.markdown("---") today = datetime.now().date() today_meals = [m for m in st.session_state.meals if m['date'] == today] col1, col2, col3, col4 = st.columns(4) col1.metric("Calories", sum([m['cal'] for m in today_meals]), "/ 3300") col2.metric("Protein", f"{sum([m['prot'] for m in today_meals])}g", "/ 174g") col3.metric("Carbs", f"{sum([m['carbs'] for m in today_meals])}g", "/ 420g") col4.metric("Fats", f"{sum([m['fats'] for m in today_meals])}g", "/ 44g") # PAGE 3: TRAINING elif page == "🏋️ Training": st.markdown("## Training Tracker") col1, col2 = st.columns(2) with col1: ex_name = st.text_input("Exercise", "Barbell Bench Press") with col2: muscle = st.selectbox("Muscle", ["Chest", "Back", "Biceps", "Triceps", "Shoulders", "Legs"]) col1, col2, col3 = st.columns(3) with col1: weight = st.number_input("Weight (kg)", 10, 200, 78, step=0.5) with col2: reps = st.number_input("Reps", 1, 50, 8) with col3: sets = st.number_input("Sets", 1, 10, 4) col1, col2 = st.columns(2) with col1: rpe = st.slider("RPE", 1, 10, 8) with col2: ex_date = st.date_input("Date", datetime.now()) if st.button("✅ Log Exercise"): volume = weight * reps * sets st.session_state.exercises.append({'date': ex_date, 'ex': ex_name, 'muscle': muscle, 'w': weight, 'r': reps, 's': sets, 'rpe': rpe, 'vol': volume}) st.success(f"✅ {volume:,.0f}kg!") # PAGE 4: METRICS elif page == "📈 Metrics": st.markdown("## Body Metrics") col1, col2 = st.columns(2) with col1: met_date = st.date_input("Date", datetime.now()) with col2: weight = st.number_input("Weight (kg)", 60.0, 100.0, 69.6, step=0.1) col1, col2, col3 = st.columns(3) with col1: fat = st.number_input("Fat %", 5.0, 40.0, 16.2, step=0.1) with col2: muscle = st.number_input("Muscle (kg)", 40.0, 80.0, 55.4, step=0.1) with col3: sleep = st.number_input("Sleep (h)", 0, 12, 5, step=0.5) if st.button("✅ Save Metrics"): st.session_state.metrics.append({'date': met_date, 'weight': weight, 'fat': fat, 'muscle': muscle, 'sleep': sleep}) st.success("✅ Saved!") st.markdown("---") latest = st.session_state.metrics[-1] col1, col2, col3 = st.columns(3) col1.metric("Weight", f"{latest['weight']:.1f}kg", "58% → target") col2.metric("Fat %", f"{latest['fat']:.1f}%", "62% → target") col3.metric("Muscle", f"{latest['muscle']:.1f}kg", "85% → target") # PAGE 5: ANALYTICS elif page == "📉 Analytics": st.markdown("## Weekly Analytics") col1, col2, col3, col4 = st.columns(4) col1.metric("Workouts", "3/4", "75%") col2.metric("Nutrition", "92%", "Good") col3.metric("Volume", "65k kg", "on track") col4.metric("Sleep", "5.2h", "⚠️ Low") st.success("✅ Nutrition excellent (92% adherence)") st.warning("⚠️ Sleep critical (5.2h avg, target 7h)") st.info("💡 Complete Thursday for full weekly volume") comparison = pd.DataFrame({ 'Week': ['Wk2', 'Wk3', 'Wk4', 'Wk5'], 'Weight': [70.1, 70.35, 69.3, 69.6], 'Fat%': [16.7, 16.6, 16.6, 16.2], 'Volume': [58, 61, 59, 65], 'Score': [76, 78, 79, 82] }) st.dataframe(comparison, use_container_width=True) # PAGE 6: PLAN elif page == "🎯 Plan": st.markdown("## 12-Month Plan") phases = pd.DataFrame({ 'Phase': ['Phase 1', 'Phase 2', 'Phase 3', 'Phase 4', 'Phase 5', 'Phase 6'], 'Weeks': ['5-8', '9-12', '13-20', '21-24', '25-36', '37-48'], 'Cal/Day': [3300, 3400, 3500, 3200, 3300, 3100], 'Goal': ['Foundation', 'Hypertrophy', 'Volume', 'Strength', 'Recomp', 'Shred'] }) st.dataframe(phases, use_container_width=True) milestones = pd.DataFrame({ 'Timeline': ['Oct (Wk8)', 'Nov (Wk12)', 'Dec (Wk16)', 'Jan (Wk24)', 'Feb (Wk32)', 'Sep (Wk48)'], 'Weight': ['70.8kg', '72.4kg', '74.4kg', '74.9kg', '75.6kg', '75.0kg'], 'Fat%': ['16.1%', '15.9%', '15.7%', '14.8%', '13.4%', '10.0%'], 'Milestone': ['Arm outline', 'Clear peaks ⭐', 'Full def', 'Abs show', '5-pack ⭐⭐', 'Reference ✓'] }) st.dataframe(milestones, use_container_width=True) st.success("✅ **Target: September 2027** (52 weeks)") st.info("Following this plan consistently will get you to your reference physique.")
+"""
+JOHN'S FITNESS DASHBOARD - Week 5 Tracker
+12-Month Physique Transformation
+"""
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+from datetime import datetime
+
+# ============================================================================
+# PAGE CONFIG
+# ============================================================================
+
+st.set_page_config(
+    page_title="John's Fitness Dashboard",
+    page_icon="💪",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# ============================================================================
+# INITIALIZE SESSION STATE
+# ============================================================================
+
+def init_session_state():
+    if 'meals' not in st.session_state:
+        st.session_state.meals = []
+    if 'exercises' not in st.session_state:
+        st.session_state.exercises = []
+    if 'metrics' not in st.session_state:
+        st.session_state.metrics = [
+            {'date': '2026-09-19', 'weight': 69.6, 'fat': 16.2, 'muscle': 55.4, 'waist': 82, 'sleep': 5.0}
+        ]
+
+init_session_state()
+
+# ============================================================================
+# CONSTANTS
+# ============================================================================
+
+PROFILE = {
+    'name': 'John',
+    'age': 33,
+    'height': 176,
+    'location': 'UK',
+    'weight_current': 69.6,
+    'fat_current': 16.2,
+    'muscle_current': 55.4,
+    'weight_target': 75.0,
+    'fat_target': 10.0,
+    'muscle_target': 62.0,
+}
+
+# ============================================================================
+# HEADER
+# ============================================================================
+
+col1, col2 = st.columns([2, 1])
+with col1:
+    st.title("💪 John's Fitness Dashboard")
+    st.subheader("Week 5 - Phase 1: Foundation + Density")
+with col2:
+    st.info(f"**Week 5** | Phase 1\n69.6kg → 75kg\n16.2% → 10% fat")
+
+# ============================================================================
+# SIDEBAR
+# ============================================================================
+
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Select Section:", [
+    "📊 Dashboard",
+    "🍽️ Nutrition",
+    "🏋️ Training",
+    "📈 Metrics",
+    "📉 Analytics",
+    "🎯 12-Month Plan"
+])
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Quick Stats")
+st.sidebar.metric("Weight", "69.6 kg", "+0.3 kg")
+st.sidebar.metric("Body Fat", "16.2%", "Stable")
+st.sidebar.metric("Workouts", "3/4", "75%")
+st.sidebar.metric("Nutrition", "92%", "Good")
+
+# ============================================================================
+# PAGE 1: DASHBOARD
+# ============================================================================
+
+if page == "📊 Dashboard":
+    st.markdown("## Weekly Overview")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Weight", "69.6 kg", "+0.3 kg")
+    with col2:
+        st.metric("Body Fat", "16.2%", "Stable")
+    with col3:
+        st.metric("Muscle Mass", "55.4 kg", "+0.2 kg")
+    with col4:
+        st.metric("Sleep Avg", "5.2h", "⚠️ Low")
+    
+    st.markdown("---")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### 📋 This Week's Workouts")
+        workouts = pd.DataFrame({
+            'Day': ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
+            'Focus': ['Upper A', 'Lower A', 'Upper B', 'Lower B'],
+            'Main Lift': ['Bench 78kg', 'Squat 82kg', 'Hammer 16kg',
