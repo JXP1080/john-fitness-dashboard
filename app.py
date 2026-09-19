@@ -250,16 +250,16 @@ with tab4:
     
     col1, col2 = st.columns(2)
     
-    with col1:
-        st.markdown("#### Weekly Log")
-        weight_today = st.number_input("Weight (kg)", value=69.6, step=0.1)
-        body_fat = st.number_input("Body Fat (%)", value=16.2, step=0.1)
-        muscle_mass = st.number_input("Muscle Mass (kg)", value=55.4, step=0.1)
-        waist_cm = st.number_input("Waist (cm)", value=82, step=0.5)
-        sleep_hours = st.number_input("Sleep (hours)", value=5, step=0.5)
-        
-        if st.button("💾 Save Metrics"):
-            st.success("✓ Metrics saved")
+   with col1:
+    st.markdown("#### Weekly Log")
+    weight_today = st.number_input("Weight (kg)", value=69.6, step=0.1)
+    body_fat = st.number_input("Body Fat (%)", value=16.2, step=0.1)
+    muscle_mass = st.number_input("Muscle Mass (kg)", value=55.4, step=0.1)
+    waist_cm = st.number_input("Waist (cm)", value=82.0, step=0.5)  # FIXED
+    sleep_hours = st.number_input("Sleep (hours)", value=5.0, step=0.5)  # FIXED
+    
+    if st.button("💾 Save Metrics"):
+        st.success("✓ Metrics saved")
     
     with col2:
         st.markdown("#### Progress Since Week 1")
