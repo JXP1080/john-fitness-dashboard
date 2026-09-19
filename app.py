@@ -189,7 +189,7 @@ elif page == "🏋️ Training":
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        weight = st.number_input("Weight (kg)", 10, 200, 78, step=0.5)
+        weight = st.number_input("Weight (kg)", 60.0, 100.0, 69.6, step=0.1)
     with col2:
         reps = st.number_input("Reps", 1, 50, 8)
     with col3:
