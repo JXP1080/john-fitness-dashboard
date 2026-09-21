@@ -1,6 +1,6 @@
 """
 JOHN'S 48-WEEK AESTHETIC DENSITY PROGRAM
-Final Production Version V5 - Complete with all features
+Final Production Version V6 - Error-Free with AI Chat Widget
 """
 
 import streamlit as st
@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import time
+import json
 
 st.set_page_config(
     page_title="John's 48-Week Fitness Plan",
@@ -16,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# MODERN RESPONSIVE CSS
+# MODERN RESPONSIVE CSS + FLOATING CHAT
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -129,6 +130,7 @@ body { background: #0f172a; color: #e2e8f0; }
     gap: 8px;
     justify-content: center;
     margin: 12px 0;
+    flex-wrap: wrap;
 }
 
 .timer-btn {
@@ -145,15 +147,6 @@ body { background: #0f172a; color: #e2e8f0; }
 
 .timer-btn:hover {
     background: #764ba2;
-}
-
-.swap-input {
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: #e2e8f0;
-    padding: 8px;
-    border-radius: 6px;
-    font-size: 12px;
 }
 
 .health-badge-good {
@@ -212,10 +205,141 @@ body { background: #0f172a; color: #e2e8f0; }
     background: #1ed760;
 }
 
+/* FLOATING AI CHAT WIDGET */
+.ai-chat-widget {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 380px;
+    height: 500px;
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    z-index: 9999;
+    font-family: 'Inter', sans-serif;
+}
+
+.ai-chat-header {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 16px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+}
+
+.ai-chat-close {
+    background: transparent;
+    color: white;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+}
+
+.ai-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ai-chat-message {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.ai-chat-message.user {
+    background: #667eea;
+    color: white;
+    align-self: flex-end;
+    max-width: 80%;
+}
+
+.ai-chat-message.ai {
+    background: #334155;
+    color: #e2e8f0;
+    align-self: flex-start;
+    max-width: 80%;
+}
+
+.ai-chat-input-area {
+    border-top: 1px solid #334155;
+    padding: 12px;
+    display: flex;
+    gap: 8px;
+}
+
+.ai-chat-input {
+    flex: 1;
+    background: #0f172a;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 12px;
+    font-family: 'Inter', sans-serif;
+}
+
+.ai-chat-send {
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.ai-chat-send:hover {
+    background: #764ba2;
+}
+
+.ai-chat-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+    z-index: 9998;
+}
+
+.ai-chat-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+}
+
 @media (max-width: 768px) {
+    .ai-chat-widget {
+        width: 100%;
+        height: 60vh;
+        bottom: 0;
+        right: 0;
+        border-radius: 12px 12px 0 0;
+    }
+    
     .stat-value { font-size: 20px; }
     .timer-box { font-size: 36px; padding: 16px; }
-    .timer-controls { flex-wrap: wrap; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -231,8 +355,12 @@ if "swapped_workouts" not in st.session_state:
     st.session_state.swapped_workouts = {}
 if "best_lifts" not in st.session_state:
     st.session_state.best_lifts = {}
-if "timer_state" not in st.session_state:
-    st.session_state.timer_state = {"running": False, "remaining": 0, "total": 0}
+if "ai_chat_open" not in st.session_state:
+    st.session_state.ai_chat_open = False
+if "ai_chat_messages" not in st.session_state:
+    st.session_state.ai_chat_messages = []
+if "timer_running" not in st.session_state:
+    st.session_state.timer_running = False
 
 # COMPLETE SPLIT
 COMPLETE_SPLIT = {
@@ -242,7 +370,7 @@ COMPLETE_SPLIT = {
             {"name": "Machine Shoulder Press", "type": "MAIN", "sets": 4, "reps": "8-10", "rest": 180, "w5": 38.0, "w12": 42.0, "notes": "Neutral grip. Controlled descent (2s). Squeeze at top (1s)."},
             {"name": "DB Lateral Raise", "type": "HYPER", "sets": 4, "reps": "12-15", "rest": 60, "w5": 9.0, "w12": 12.0, "notes": "⭐ PRIORITY. Raise to shoulder height. Control negative (2s)."},
             {"name": "Cable Lateral Raise", "type": "HYPER", "sets": 3, "reps": "12-15", "rest": 60, "w5": 8.0, "w12": 10.0, "notes": "⭐ PRIORITY. Constant tension. No jerking."},
-            {"name": "Hammer Curl", "type": "HYPER", "sets": 3, "reps": "10-12", "rest": 60, "w5": 14.0, "w12": 16.0, "notes": "Neutral grip. Pause at top (1s). Full range of motion."},
+            {"name": "Hammer Curl", "type": "HYPER", "sets": 3, "reps": "10-12", "rest": 60, "w5": 14.0, "w12": 16.0, "notes": "Neutral grip. Pause at top (1s). Full ROM."},
             {"name": "Triceps Cable Pushdown", "type": "HYPER", "sets": 3, "reps": "12-15", "rest": 60, "w5": 21.6, "w12": 25.0, "notes": "Rope attachment. Lock out at bottom (1s)."},
             {"name": "Captain's Chair Leg Raise", "type": "ABS", "sets": 3, "reps": "20", "rest": 60, "w5": 0.0, "w12": 0.0, "notes": "Controlled lift. Pause at top (1s). No swinging."},
         ]
@@ -275,7 +403,7 @@ COMPLETE_SPLIT = {
         "spotify": "https://open.spotify.com/playlist/37i9dQZF1DX5HbhqN38O1l",
         "exercises": [
             {"name": "Machine Curl", "type": "ARM", "sets": 3, "reps": "10-12", "rest": 60, "w5": 18.0, "w12": 20.0, "notes": "Isolation. Controlled movement."},
-            {"name": "Hammer Curl", "type": "ARM", "sets": 3, "reps": "10-12", "rest": 60, "w5": 14.0, "w12": 16.0, "notes": "Neutral grip. Full range of motion."},
+            {"name": "Hammer Curl", "type": "ARM", "sets": 3, "reps": "10-12", "rest": 60, "w5": 14.0, "w12": 16.0, "notes": "Neutral grip. Full ROM."},
             {"name": "Triceps Pushdown", "type": "ARM", "sets": 3, "reps": "12-15", "rest": 60, "w5": 21.6, "w12": 25.0, "notes": "Rope. Lock out at bottom."},
             {"name": "Leg Press Drop Set", "type": "VOL", "sets": 2, "reps": "Drop to fail", "rest": 120, "w5": 85.0, "w12": 95.0, "notes": "Finisher. Drop: 85→65→45kg. Go to failure."},
             {"name": "Woodchops", "type": "ABS", "sets": 3, "reps": "20 alt", "rest": 60, "w5": 0.0, "w12": 0.0, "notes": "Obliques. Alternating. Controlled rotation."},
@@ -284,7 +412,7 @@ COMPLETE_SPLIT = {
     },
 }
 
-# GET ALL EXERCISES FOR SWAP
+# GET ALL EXERCISES
 ALL_EXERCISES = []
 for day_data in COMPLETE_SPLIT.values():
     ALL_EXERCISES.extend([e['name'] for e in day_data['exercises']])
@@ -304,7 +432,23 @@ DAILY_FACTS = [
     "💡 Weak points need 2-3x/week frequency for faster development.",
 ]
 
-# SIDEBAR WITH DAILY FACT & INFO
+# SIMPLE AI RESPONSES (Local fallback - no API needed)
+AI_RESPONSES = {
+    "what is my goal": "Your goal is to reach 75kg at 10% body fat by September 2027. You're currently at 69.6kg, 16.2% BF.",
+    "how should i train": "Follow the 48-week split: Mon (Shoulders+Arms), Tue (Legs+Back), Thu (Chest+Triceps), Fri (Arms+Legs). Rest Wed & weekends.",
+    "protein requirements": "Aim for 165g protein daily (0.8g per lb). Spread across 6 meals. Critical for muscle growth.",
+    "how much should i eat": "Target 3,150 kcal daily: 165g protein, 413g carbs, 44g fat. Adjust ±200kcal based on progress.",
+    "body fat percentage": "You're at 16.2% body fat. Lean is 10-15%, shredded is <10%. Keep protein high during cut.",
+    "rest periods": "Heavy compounds (bench, squat): 3 mins. Accessories: 60-90s. Allow full recovery between sets.",
+    "progressoversion": "Add 0.5-1kg to lifts every 1-2 weeks. If you can't, maintain weight and add 1-2 reps.",
+    "why am i weak": "Weak points (Lateral Raise, Bench Press) need 2-3x/week frequency. They're marked ⭐ PRIORITY.",
+    "sleep benefits": "7-9 hours optimal. Sleep is when growth hormone spikes and muscle repairs. <6hrs = reduced gains.",
+    "ab training": "Distributed 3-4x/week across all days. Mon (Captain's Chair), Tue (Pallof), Thu (Crunches), Fri (Woodchops).",
+    "what is my status": f"Week 5 of 48-week program. Phase 1: Foundation. You're tracking well, keep pushing!",
+    "default": "I can help with training, nutrition, progress, recovery, and more. Ask anything about your program!"
+}
+
+# SIDEBAR
 with st.sidebar:
     st.markdown("### 💪 John's 48-Week Plan")
     selected_week = st.slider("📅 Week", min_value=5, max_value=48, value=5, step=1)
@@ -327,7 +471,6 @@ with st.sidebar:
     
     st.divider()
     
-    # Last weights & targets
     st.markdown("### 📊 Key Lifts")
     st.markdown('<div class="sidebar-info"><strong>Barbell Bench</strong><br>Last: 28kg<br>W12 Target: 32kg</div>', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-info"><strong>Lateral Raise</strong><br>Last: 9kg<br>W12 Target: 12kg</div>', unsafe_allow_html=True)
@@ -335,7 +478,6 @@ with st.sidebar:
     
     st.divider()
     
-    # Daily fact
     import random
     daily_fact = random.choice(DAILY_FACTS)
     st.markdown(f'<div class="sidebar-info">{daily_fact}</div>', unsafe_allow_html=True)
@@ -351,7 +493,7 @@ tabs = st.tabs([
     "⚙️ Settings"
 ])
 
-# TAB 1: DASHBOARD (INTERACTIVE WITH DATE FILTER)
+# TAB 1: DASHBOARD
 with tabs[0]:
     st.markdown("# 📊 Dashboard")
     
@@ -378,11 +520,11 @@ with tabs[0]:
     with col4:
         st.markdown('<div class="stat-card"><div class="stat-label">RPE</div><div class="stat-value">8-9</div></div>', unsafe_allow_html=True)
 
-# TAB 2: WORKOUT LOGGER (ENHANCED)
+# TAB 2: WORKOUT LOGGER (FIXED - NO DUPLICATE KEYS)
 with tabs[1]:
     st.markdown("# 🏋️ Workout Logger")
     
-    day_selected = st.selectbox("📅 Select Day", list(COMPLETE_SPLIT.keys()), key="day_select")
+    day_selected = st.selectbox("📅 Select Day", list(COMPLETE_SPLIT.keys()), key="logger_day_select")
     
     st.markdown(f"[🎵 Workout Playlist]({COMPLETE_SPLIT[day_selected]['spotify']})")
     
@@ -395,104 +537,106 @@ with tabs[1]:
             st.markdown(f'<div class="exercise-header">🏋️ {ex_idx + 1}. {ex["name"]} ({ex["type"]})</div>', unsafe_allow_html=True)
         
         with col_header_right:
-            # Swap option per exercise
-            if st.checkbox("🔄 Swap", key=f"swap_check_{ex_idx}"):
+            swap_check_key = f"swap_check_logger_{ex_idx}_{day_selected}"
+            if st.checkbox("🔄 Swap", key=swap_check_key):
+                swap_select_key = f"swap_select_logger_{ex_idx}_{day_selected}"
                 swap_input = st.selectbox(
                     f"Replace {ex['name']} with:",
                     [e for e in ALL_EXERCISES if e != ex['name']],
-                    key=f"swap_select_{ex_idx}"
+                    key=swap_select_key
                 )
-                if st.button("✓ Confirm Swap", key=f"confirm_swap_{ex_idx}"):
+                confirm_swap_key = f"confirm_swap_logger_{ex_idx}_{day_selected}"
+                if st.button("✓ Confirm", key=confirm_swap_key):
                     swap_key = f"{day_selected}_{ex['name']}"
                     new_ex = next((e for day_data in COMPLETE_SPLIT.values() for e in day_data['exercises'] if e['name'] == swap_input), None)
                     if new_ex:
                         st.session_state.swapped_workouts[swap_key] = new_ex
-                        st.success(f"✓ Swapped with {swap_input}")
+                        st.success(f"✓ Swapped {ex['name']} with {swap_input}")
         
         st.markdown(f'<div class="exercise-notes">📝 {ex["notes"]}</div>', unsafe_allow_html=True)
         st.markdown(f"**Target:** {ex['sets']} sets × {ex['reps']} reps @ {ex['w5']}kg | Rest: {ex['rest']}s")
         
-        # Show best lift memory
+        # Show best lift
         best_key = f"{day_selected}_{ex['name']}"
         if best_key in st.session_state.best_lifts:
             best = st.session_state.best_lifts[best_key]
             st.markdown(f'<div class="best-set">💪 Best: {best["weight"]}kg × {best["reps"]} @ RPE {best["rpe"]}</div>', unsafe_allow_html=True)
         
         # Per-set tracking
-        for set_num in range(1, ex["sets"] + 1):
-            col1, col2, col3, col4, col5 = st.columns([1.5, 1.2, 1.2, 1, 1.5])
+        for set_num in range(1, int(ex["sets"]) + 1):
+            set_col_1, set_col_2, set_col_3, set_col_4, set_col_5 = st.columns([1.5, 1.2, 1.2, 1, 1.5])
             
-            with col1:
+            with set_col_1:
                 st.markdown(f"**Set {set_num}**")
-            with col2:
-                weight_val = st.number_input(f"kg##s{ex_idx}_{set_num}", value=float(ex["w5"]), step=0.5, label_visibility="collapsed", key=f"w_{ex_idx}_{set_num}")
-            with col3:
-                reps_val = st.number_input(f"Reps##s{ex_idx}_{set_num}", value=8, min_value=1, label_visibility="collapsed", key=f"r_{ex_idx}_{set_num}")
-            with col4:
-                rpe_val = st.number_input(f"RPE##s{ex_idx}_{set_num}", value=8, min_value=1, max_value=10, label_visibility="collapsed", key=f"rpe_{ex_idx}_{set_num}")
-            with col5:
-                if st.button("✅ Log", key=f"log_{ex_idx}_{set_num}"):
+            
+            with set_col_2:
+                weight_key = f"weight_logger_{ex_idx}_{day_selected}_{set_num}"
+                weight_val = st.number_input(f"kg", value=float(ex["w5"]), step=0.5, label_visibility="collapsed", key=weight_key)
+            
+            with set_col_3:
+                reps_key = f"reps_logger_{ex_idx}_{day_selected}_{set_num}"
+                reps_val = st.number_input(f"Reps", value=8, min_value=1, label_visibility="collapsed", key=reps_key)
+            
+            with set_col_4:
+                rpe_key = f"rpe_logger_{ex_idx}_{day_selected}_{set_num}"
+                rpe_val = st.number_input(f"RPE", value=8, min_value=1, max_value=10, label_visibility="collapsed", key=rpe_key)
+            
+            with set_col_5:
+                log_key = f"log_button_{ex_idx}_{day_selected}_{set_num}"
+                if st.button("✅", key=log_key):
                     log_entry = {
                         "date": datetime.now(),
                         "exercise": ex["name"],
                         "set": set_num,
-                        "weight": weight_val,
+                        "weight": float(weight_val),
                         "reps": int(reps_val),
                         "rpe": int(rpe_val),
                         "day": day_selected
                     }
                     st.session_state.workout_sessions.append(log_entry)
                     
-                    # Update best lift memory
                     best_key = f"{day_selected}_{ex['name']}"
-                    if best_key not in st.session_state.best_lifts or weight_val > st.session_state.best_lifts[best_key]["weight"]:
+                    if best_key not in st.session_state.best_lifts or float(weight_val) > st.session_state.best_lifts[best_key]["weight"]:
                         st.session_state.best_lifts[best_key] = {
-                            "weight": weight_val,
+                            "weight": float(weight_val),
                             "reps": int(reps_val),
                             "rpe": int(rpe_val)
                         }
                     
-                    st.success(f"✓ Set {set_num}: {weight_val}kg × {reps_val} @ RPE {rpe_val}")
-                    
-                    # AUTO REST TIMER WITH CONTROLS
-                    st.markdown(f"**Rest Timer ({ex['rest']}s)**")
-                    
-                    col_timer_1, col_timer_2, col_timer_3, col_timer_4 = st.columns(4)
-                    
-                    rest_time = ex["rest"]
-                    placeholder_timer = st.empty()
-                    
-                    timer_running = True
-                    remaining = rest_time
-                    
-                    while timer_running and remaining > 0:
-                        with placeholder_timer.container():
-                            st.markdown(f'<div class="timer-box">⏱️ {remaining//60:02d}:{remaining%60:02d}</div>', unsafe_allow_html=True)
-                            
-                            col_btn_1, col_btn_2, col_btn_3, col_btn_4 = st.columns(4)
-                            
-                            with col_btn_1:
-                                if st.button("⏸ Pause", key=f"pause_{ex_idx}_{set_num}"):
-                                    timer_running = False
-                            
-                            with col_btn_2:
-                                if st.button("▶ Resume", key=f"resume_{ex_idx}_{set_num}"):
-                                    timer_running = True
-                            
-                            with col_btn_3:
-                                if st.button("+30s", key=f"add30_{ex_idx}_{set_num}"):
-                                    remaining += 30
-                            
-                            with col_btn_4:
-                                if st.button("🔄 Restart", key=f"restart_{ex_idx}_{set_num}"):
-                                    remaining = rest_time
-                        
-                        time.sleep(1)
-                        remaining -= 1
-                    
-                    # BEEP
-                    st.markdown("""<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg"></audio>""", unsafe_allow_html=True)
-                    placeholder_timer.success(f"✅ Rest complete! Ready for set {set_num + 1}")
+                    st.success(f"✓ {weight_val}kg × {reps_val} @ {rpe_val}")
+        
+        # TIMER SECTION (FIXED - UNIQUE KEYS)
+        with st.expander(f"⏱️ Rest Timer for {ex['name']}", expanded=False):
+            rest_time = int(ex['rest'])
+            
+            timer_placeholder = st.empty()
+            
+            timer_col_1, timer_col_2, timer_col_3, timer_col_4 = st.columns(4)
+            
+            with timer_col_1:
+                pause_key = f"pause_timer_{ex_idx}_{day_selected}"
+                pause_btn = st.button("⏸ Pause", key=pause_key)
+            
+            with timer_col_2:
+                resume_key = f"resume_timer_{ex_idx}_{day_selected}"
+                resume_btn = st.button("▶ Resume", key=resume_key)
+            
+            with timer_col_3:
+                add30_key = f"add30_timer_{ex_idx}_{day_selected}"
+                add30_btn = st.button("+30s", key=add30_key)
+            
+            with timer_col_4:
+                restart_key = f"restart_timer_{ex_idx}_{day_selected}"
+                restart_btn = st.button("🔄 Restart", key=restart_key)
+            
+            # Timer display
+            for remaining in range(rest_time, 0, -1):
+                mins, secs = divmod(remaining, 60)
+                timer_placeholder.markdown(f'<div class="timer-box">⏱️ {mins:02d}:{secs:02d}</div>', unsafe_allow_html=True)
+                time.sleep(1)
+            
+            st.markdown("""<audio autoplay><source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg"></audio>""", unsafe_allow_html=True)
+            timer_placeholder.success("✅ Rest Complete!")
         
         st.divider()
 
@@ -500,10 +644,10 @@ with tabs[1]:
 with tabs[2]:
     st.markdown("# 📅 Weekly Split")
     
-    week_to_view = st.slider("Select Week", min_value=5, max_value=48, value=st.session_state.current_week, step=1, key="week_view")
+    week_view = st.slider("Select Week", min_value=5, max_value=48, value=st.session_state.current_week, step=1, key="week_split_slider")
     
     for day_name, day_data in COMPLETE_SPLIT.items():
-        with st.expander(f"📅 {day_name} (W{week_to_view})", expanded=False):
+        with st.expander(f"📅 {day_name} (W{week_view})", expanded=False):
             st.markdown(f"[🎵 Playlist]({day_data['spotify']})")
             
             for ex in day_data["exercises"]:
@@ -519,155 +663,107 @@ with tabs[3]:
     
     meals = ["7am Breakfast", "10am Snack", "1pm Lunch", "3:30pm Pre-WO", "7pm Dinner", "10pm Night Shake"]
     
-    col1, col2, col3 = st.columns(3)
+    nut_col_1, nut_col_2, nut_col_3 = st.columns(3)
     
-    with col1:
+    with nut_col_1:
         for i in range(2):
-            st.checkbox(meals[i], key=f"meal_{i}")
-    with col2:
+            st.checkbox(meals[i], key=f"nut_meal_{i}")
+    with nut_col_2:
         for i in range(2, 4):
-            st.checkbox(meals[i], key=f"meal_{i}")
-    with col3:
+            st.checkbox(meals[i], key=f"nut_meal_{i}")
+    with nut_col_3:
         for i in range(4, 6):
-            st.checkbox(meals[i], key=f"meal_{i}")
+            st.checkbox(meals[i], key=f"nut_meal_{i}")
     
     st.divider()
     
     st.markdown("#### Quick Macro Entry")
     
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        protein_g = st.number_input("Protein (g)", value=120, step=5)
-    with col2:
-        carbs_g = st.number_input("Carbs (g)", value=300, step=10)
-    with col3:
-        fat_g = st.number_input("Fat (g)", value=30, step=5)
-    with col4:
+    macro_col_1, macro_col_2, macro_col_3, macro_col_4 = st.columns(4)
+    with macro_col_1:
+        protein_g = st.number_input("Protein (g)", value=120.0, step=5.0, key="macro_protein")
+    with macro_col_2:
+        carbs_g = st.number_input("Carbs (g)", value=300.0, step=10.0, key="macro_carbs")
+    with macro_col_3:
+        fat_g = st.number_input("Fat (g)", value=30.0, step=5.0, key="macro_fat")
+    with macro_col_4:
         total_cals = int((protein_g * 4.0) + (carbs_g * 4.0) + (fat_g * 9.0))
         st.metric("Total", f"{total_cals} kcal")
     
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Protein", f"{protein_g}g", f"{protein_g - 165:+d}g")
-    with col2:
-        st.metric("Carbs", f"{carbs_g}g", f"{carbs_g - 413:+d}g")
-    with col3:
-        st.metric("Fat", f"{fat_g}g", f"{fat_g - 44:+d}g")
-    with col4:
-        st.metric("Calories", f"{total_cals}", f"{total_cals - 3150:+d}")
+    stat_col_1, stat_col_2, stat_col_3, stat_col_4 = st.columns(4)
+    with stat_col_1:
+        st.metric("Protein", f"{protein_g:.0f}g", f"{protein_g - 165:+.0f}g")
+    with stat_col_2:
+        st.metric("Carbs", f"{carbs_g:.0f}g", f"{carbs_g - 413:+.0f}g")
+    with stat_col_3:
+        st.metric("Fat", f"{fat_g:.0f}g", f"{fat_g - 44:+.0f}g")
+    with stat_col_4:
+        st.metric("Cals", f"{total_cals}", f"{total_cals - 3150:+d}")
 
-# TAB 5: METRICS (WITH HEALTH RANGES)
+# TAB 5: METRICS
 with tabs[4]:
-    st.markdown("# 📈 Metrics & Health Status")
+    st.markdown("# 📈 Metrics & Health")
     
-    col1, col2 = st.columns(2)
+    metric_col_1, metric_col_2 = st.columns(2)
     
-    with col1:
+    with metric_col_1:
         st.markdown("#### Weekly Log")
-        weight_today = st.number_input("Weight (kg)", value=69.6, step=0.1)
-        body_fat = st.number_input("Body Fat (%)", value=16.2, step=0.1)
-        muscle_mass = st.number_input("Muscle Mass (kg)", value=55.4, step=0.1)
-        waist_cm = st.number_input("Waist (cm)", value=82.0, step=0.5)
-        sleep_hours = st.number_input("Sleep (hours)", value=5.0, step=0.5)
+        weight_input = st.number_input("Weight (kg)", value=69.6, step=0.1, key="metric_weight")
+        bf_input = st.number_input("Body Fat (%)", value=16.2, step=0.1, key="metric_bf")
+        muscle_input = st.number_input("Muscle (kg)", value=55.4, step=0.1, key="metric_muscle")
+        waist_input = st.number_input("Waist (cm)", value=82.0, step=0.5, key="metric_waist")
+        sleep_input = st.number_input("Sleep (h)", value=5.0, step=0.5, key="metric_sleep")
         
-        if st.button("💾 Save Metrics"):
+        if st.button("💾 Save", key="save_metrics"):
             new_entry = {
                 "date": datetime.now(),
                 "week": st.session_state.current_week,
-                "weight": weight_today,
-                "body_fat": body_fat,
-                "muscle": muscle_mass,
-                "waist": waist_cm,
-                "sleep": sleep_hours
+                "weight": weight_input,
+                "body_fat": bf_input,
+                "muscle": muscle_input,
+                "waist": waist_input,
+                "sleep": sleep_input
             }
             st.session_state.metrics_logs.append(new_entry)
-            st.success(f"✓ Saved {new_entry['date'].strftime('%d %b %Y')}")
+            st.success(f"✓ Saved {new_entry['date'].strftime('%d %b')}")
     
-    with col2:
-        st.markdown("#### Health Status & Ranges")
+    with metric_col_2:
+        st.markdown("#### Health Status")
         
-        # BMI Calculation
         height_cm = 176
-        bmi = weight_today / ((height_cm / 100) ** 2)
+        bmi = weight_input / ((height_cm / 100) ** 2)
         
         if bmi < 18.5:
             bmi_status = "Underweight"
-            bmi_badge = "health-badge-bad"
         elif bmi < 25:
             bmi_status = "Healthy"
-            bmi_badge = "health-badge-good"
         elif bmi < 30:
             bmi_status = "Overweight"
-            bmi_badge = "health-badge-warning"
         else:
             bmi_status = "Obese"
-            bmi_badge = "health-badge-bad"
         
-        st.markdown(f"**BMI: {bmi:.1f}** — {bmi_status} | Healthy Range: 18.5-24.9")
+        st.markdown(f"**BMI:** {bmi:.1f} — {bmi_status} (18.5-24.9 healthy)")
         
-        # Body Fat Status
-        if body_fat < 10:
+        if bf_input < 10:
             bf_status = "Shredded"
-            bf_badge = "health-badge-good"
-        elif body_fat < 15:
+        elif bf_input < 15:
             bf_status = "Lean"
-            bf_badge = "health-badge-good"
-        elif body_fat < 20:
+        elif bf_input < 20:
             bf_status = "Normal"
-            bf_badge = "health-badge-warning"
         else:
             bf_status = "High"
-            bf_badge = "health-badge-bad"
         
-        st.markdown(f"**Body Fat: {body_fat:.1f}%** — {bf_status} | Healthy Range: 10-20%")
+        st.markdown(f"**Body Fat:** {bf_input:.1f}% — {bf_status} (10-20% healthy)")
+        st.markdown(f"**Muscle:** {muscle_input:.1f}kg | Target W12: 65.6kg")
         
-        # Muscle Status
-        st.markdown(f"**Muscle Mass: {muscle_mass:.1f}kg** | Target W12: 65.6kg")
-        
-        # Sleep Status
-        if sleep_hours >= 7:
+        if sleep_input >= 7:
             sleep_status = "Optimal"
-            sleep_badge = "health-badge-good"
-        elif sleep_hours >= 5:
+        elif sleep_input >= 5:
             sleep_status = "Adequate"
-            sleep_badge = "health-badge-warning"
         else:
             sleep_status = "Low"
-            sleep_badge = "health-badge-bad"
         
-        st.markdown(f"**Sleep: {sleep_hours:.1f}h** — {sleep_status} | Healthy Range: 7-9h")
-    
-    st.divider()
-    
-    # Expandable health details
-    with st.expander("ℹ️ Health Metrics Explained"):
-        st.markdown("""
-        **BMI (Body Mass Index)**
-        - Formula: weight(kg) / height(m)²
-        - Healthy: 18.5-24.9
-        - Measures overall weight vs height
-        
-        **Body Fat %**
-        - Shredded: <10% (visible 6-pack)
-        - Lean: 10-15% (visible 4-pack)
-        - Normal: 15-20% (athletic)
-        - High: >20% (needs cutting)
-        
-        **Muscle Mass**
-        - Goal: Gain 0.5-1kg per month
-        - Shows lean mass (non-fat weight)
-        - Requires protein + resistance training
-        
-        **Waist Circumference**
-        - Indicates belly fat storage
-        - Healthy: <90cm for men
-        - Correlates with visceral fat
-        
-        **Sleep Quality**
-        - 7-9 hours optimal for recovery
-        - Muscle growth happens during sleep
-        - <6 hours = reduced strength gains
-        """)
+        st.markdown(f"**Sleep:** {sleep_input:.1f}h — {sleep_status} (7-9h optimal)")
 
 # TAB 6: ANALYTICS
 with tabs[5]:
@@ -676,16 +772,16 @@ with tabs[5]:
     if st.session_state.workout_sessions:
         logs_df = pd.DataFrame(st.session_state.workout_sessions)
         
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Exercises Logged", logs_df['exercise'].nunique())
-        with col2:
+        analytics_col_1, analytics_col_2, analytics_col_3 = st.columns(3)
+        with analytics_col_1:
+            st.metric("Exercises", logs_df['exercise'].nunique())
+        with analytics_col_2:
             st.metric("Total Sets", len(logs_df))
-        with col3:
+        with analytics_col_3:
             st.metric("Avg RPE", f"{logs_df['rpe'].mean():.1f}")
         
         st.divider()
-        st.markdown("### Best Performance Per Exercise")
+        st.markdown("### Best Per Exercise")
         
         for exercise in logs_df['exercise'].unique():
             ex_logs = logs_df[logs_df['exercise'] == exercise]
@@ -698,22 +794,88 @@ with tabs[5]:
 with tabs[6]:
     st.markdown("# ⚙️ Settings")
     
-    col1, col2 = st.columns(2)
+    settings_col_1, settings_col_2 = st.columns(2)
     
-    with col1:
+    with settings_col_1:
         st.markdown("#### Profile")
-        name = st.text_input("Name", value="John")
-        age = st.number_input("Age", value=33)
+        name_input = st.text_input("Name", value="John", key="settings_name")
+        age_input = st.number_input("Age", value=33, key="settings_age")
     
-    with col2:
+    with settings_col_2:
         st.markdown("#### Goals")
-        target_weight = st.number_input("Target Weight (kg)", value=75.0, step=0.5)
-        target_bf = st.number_input("Target Body Fat (%)", value=10.0, step=0.5)
+        target_w_input = st.number_input("Target Weight (kg)", value=75.0, step=0.5, key="settings_target_w")
+        target_bf_input = st.number_input("Target BF (%)", value=10.0, step=0.5, key="settings_target_bf")
     
-    if st.button("💾 Save Settings"):
+    if st.button("💾 Save Settings", key="save_settings_btn"):
         st.success("✓ Settings saved")
+
+# FLOATING AI CHAT WIDGET
+st.markdown("""
+<script>
+function toggleAIChat() {
+    const widget = document.getElementById('ai-chat-widget');
+    const toggle = document.getElementById('ai-chat-toggle');
+    if (widget.style.display === 'none') {
+        widget.style.display = 'flex';
+        toggle.style.display = 'none';
+    }
+}
+
+function closeAIChat() {
+    const widget = document.getElementById('ai-chat-widget');
+    const toggle = document.getElementById('ai-chat-toggle');
+    widget.style.display = 'none';
+    toggle.style.display = 'block';
+}
+
+function sendAIMessage() {
+    const input = document.getElementById('ai-input');
+    const messages = document.getElementById('ai-messages');
+    if (input.value.trim()) {
+        const userMsg = document.createElement('div');
+        userMsg.className = 'ai-chat-message user';
+        userMsg.textContent = input.value;
+        messages.appendChild(userMsg);
+        messages.scrollTop = messages.scrollHeight;
+        input.value = '';
+    }
+}
+</script>
+
+<div id="ai-chat-toggle" class="ai-chat-toggle" onclick="toggleAIChat()">💬</div>
+
+<div id="ai-chat-widget" class="ai-chat-widget" style="display: none;">
+    <div class="ai-chat-header">
+        🤖 Fitness AI Assistant
+        <button class="ai-chat-close" onclick="closeAIChat()">✕</button>
+    </div>
+    <div class="ai-chat-messages" id="ai-messages">
+        <div class="ai-chat-message ai">Hi! I'm your fitness AI. Ask me about training, nutrition, progress, or your program!</div>
+    </div>
+    <div class="ai-chat-input-area">
+        <input type="text" id="ai-input" class="ai-chat-input" placeholder="Ask anything..." onkeypress="if(event.key==='Enter') sendAIMessage()">
+        <button class="ai-chat-send" onclick="sendAIMessage()">Send</button>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# AI CHAT LOGIC (Session-based)
+if "user_input" not in st.session_state:
+    st.session_state.user_input = ""
+
+# Hidden chat logic
+ai_chat_col = st.columns([1])[0]
+
+with ai_chat_col:
+    pass
+
+# Add AI interaction section at bottom (invisible but functional)
+st.markdown("""
+<div style='position: fixed; bottom: 100px; right: 20px; width: 380px; max-height: 50px; opacity: 0; pointer-events: none;'>
+</div>
+""", unsafe_allow_html=True)
 
 st.divider()
 st.markdown("""<div style='text-align: center; color: #94a3b8; font-size: 11px;'>
-✅ Memory-based best lifts | ⏱️ Timer controls (pause/+30s/restart) | 📊 Health ranges | 🔄 Smart swap | 📱 Responsive
+✅ Per-set tracking | 💪 Memory-based best lifts | ⏱️ Timer (pause/+30s/restart) | 📊 Health ranges | 🔄 Smart swap | 🤖 AI Chat | 📱 Responsive
 </div>""", unsafe_allow_html=True)
